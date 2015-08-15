@@ -115,7 +115,7 @@ start_link(Host,Port,User,Pass,MessageFunc,ClientState) ->
 %%%===================================================================
 %%% @hidden
 init([{Host,Port,User,Pass,F}]) ->
-    ClientId = "erlang_stomp_"++binary_to_list(uuid:get_v1(uuid:new(self()))),
+    ClientId = "erlang_stomp_"++uuid:to_string(uuid:uuid1()),
     Message=lists:append(["CONNECT", "\nlogin: ", User, "\npasscode: ", Pass,"\nclient-id:",ClientId, "\n\n", [0]]),
     {ok,Sock}=gen_tcp:connect(Host,Port,[{active, false}]),
     gen_tcp:send(Sock,Message),    
