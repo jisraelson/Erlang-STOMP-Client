@@ -58,12 +58,12 @@ stop(Pid) ->
     gen_server:cast(Pid,{stop}).
     
 %%% @doc Subscribe to a single topic
--spec subscribe_topic(string(),[tuple(string(),string())],pid) -> ok.
+-spec subscribe_topic(string(),[{string(),string()}],pid) -> ok.
 subscribe_topic(Topic,Options,Pid) ->
     gen_server:cast(Pid, {subscribe,topic,Topic,Options}).
 
 %%% @doc Subscribe to a single queue
--spec subscribe_queue(string(),[tuple(string(),string())],pid) -> ok.
+-spec subscribe_queue(string(),[{string(),string()}],pid) -> ok.
 subscribe_queue(Queue,Options,Pid) ->
     gen_server:cast(Pid, {subscribe,queue,Queue,Options}).
 
@@ -88,12 +88,12 @@ ack(Message, TransactionId,Pid) ->
     gen_server:cast(Pid, {ack, Message,TransactionId}).
 
 %%% @doc send a message to a topic
--spec send_topic(string(),string(),[tuple(string(),string())],pid) -> ok.
+-spec send_topic(string(),string(),[{string(),string()}],pid) -> ok.
 send_topic(Topic, Message,Options,Pid) -> 
     gen_server:cast(Pid, {send, topic, {Topic,Message,Options}}).
 
 %%% @doc send a message to a queue
--spec send_queue(string(),string(),[tuple(string(),string())],pid) -> ok.
+-spec send_queue(string(),string(),[{string(),string()}],pid) -> ok.
 send_queue(Queue, Message,Options,Pid) ->
     gen_server:cast(Pid, {send, queue, {Queue,Message,Options}}).
 
@@ -115,7 +115,7 @@ start_link(Host,Port,User,Pass,MessageFunc,ClientState) ->
 %%%===================================================================
 %%% @hidden
 init([{Host,Port,User,Pass,F}]) ->
-    ClientId = "erlang_stomp_"++binary_to_list(ossp_uuid:make(v4, text)),
+    ClientId = "erlang_stomp_"++binary_to_list(uuid:get_v1(uuid:new(self()))),
     Message=lists:append(["CONNECT", "\nlogin: ", User, "\npasscode: ", Pass,"\nclient-id:",ClientId, "\n\n", [0]]),
     {ok,Sock}=gen_tcp:connect(Host,Port,[{active, false}]),
     gen_tcp:send(Sock,Message),    
