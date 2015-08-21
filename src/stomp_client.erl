@@ -115,14 +115,9 @@ start_link(Host,Port,User,Pass,MessageFunc,ClientState) ->
 %%%===================================================================
 %%% @hidden
 init([{Host,Port,User,Pass,F}]) ->
-    ClientId = "erlang_stomp_"++uuid:to_string(uuid:uuid1()),
-    Message=lists:append(["CONNECT", "\nlogin: ", User, "\npasscode: ", Pass,"\nclient-id:",ClientId, "\n\n", [0]]),
-    {ok,Sock}=gen_tcp:connect(Host,Port,[{active, false}]),
-    gen_tcp:send(Sock,Message),    
-    {ok, Response}=gen_tcp:recv(Sock, 0),
-    State = frame(Response, #framer_state{}),
-    inet:setopts(Sock,[{active,once}]),
-    {ok, #state{framer = State, socket = Sock, onmessage = F}};
+    % Allow this process to be created before trying to connect
+    gen_server:cast(self(), {setup,Host,Port,User,Pass,F}),
+    {ok, #state{}};
 
 init([{Host,Port,User,Pass,F,Cl}]) ->
     {ok, State} = init([{Host,Port,User,Pass,F}]),
@@ -136,6 +131,17 @@ handle_call(get_client_state, _From, #state{client_state = Reply} = State) ->
 handle_call(_Request, _From, State) ->
     Reply = ok,
     {reply, Reply, State}.
+
+%%% @hidden
+handle_cast({setup, Host,Port,User,Pass,F}, State) ->
+    ClientId = "erlang_stomp_"++uuid:to_string(uuid:uuid1()),
+    Message=lists:append(["CONNECT", "\nlogin: ", User, "\npasscode: ", Pass,"\nclient-id:",ClientId, "\n\n", [0]]),
+    {ok,Sock}=gen_tcp:connect(Host,Port,[{active, false}]),
+    gen_tcp:send(Sock,Message),    
+    {ok, Response}=gen_tcp:recv(Sock, 0),
+    FState = frame(Response, #framer_state{}),
+    inet:setopts(Sock,[{active,once}]),
+    {noreply, State#state{framer = FState, socket = Sock, onmessage = F}};
 
 %%% @hidden
 handle_cast({subscribe, topic ,Topic, Options}, #state{socket = Sock} = State) ->
