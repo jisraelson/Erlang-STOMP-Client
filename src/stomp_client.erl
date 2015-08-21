@@ -136,12 +136,16 @@ handle_call(_Request, _From, State) ->
 handle_cast({setup, Host,Port,User,Pass,F}, State) ->
     ClientId = "erlang_stomp_"++uuid:to_string(uuid:uuid1()),
     Message=lists:append(["CONNECT", "\nlogin: ", User, "\npasscode: ", Pass,"\nclient-id:",ClientId, "\n\n", [0]]),
-    {ok,Sock}=gen_tcp:connect(Host,Port,[{active, false}]),
-    gen_tcp:send(Sock,Message),    
-    {ok, Response}=gen_tcp:recv(Sock, 0),
-    FState = frame(Response, #framer_state{}),
-    inet:setopts(Sock,[{active,once}]),
-    {noreply, State#state{framer = FState, socket = Sock, onmessage = F}};
+    case gen_tcp:connect(Host,Port,[{active, false}]) of
+        {ok,Sock} ->
+            gen_tcp:send(Sock,Message),    
+            {ok, Response}=gen_tcp:recv(Sock, 0),
+            FState = frame(Response, #framer_state{}),
+            inet:setopts(Sock,[{active,once}]),
+            {noreply, State#state{framer = FState, socket = Sock, onmessage = F}};
+        {error, Error} ->
+            {stop, Error, State}
+    end;
 
 %%% @hidden
 handle_cast({subscribe, topic ,Topic, Options}, #state{socket = Sock} = State) ->
@@ -222,6 +226,10 @@ handle_cast({send, queue, {Queue, Message,Options}},#state{socket = Socket} = St
 %%% @hidden
 handle_cast(_Msg, State) ->    
     {noreply, State}.
+
+%%% @hidden
+handle_info({tcp_closed, _Port}, State) ->
+    {stop, disconnected, State};
 
 %%% @hidden
 handle_info(_Info, #state{socket = Sock, onmessage = Func, framer = Framer, client_state = Cl} = State) ->
